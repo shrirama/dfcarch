@@ -23,7 +23,6 @@ RUN python get-pip.py
 RUN pip install awscli
 RUN rm -rf go$GOLANG_VERSION.linux-amd64.tar.gz
 RUN go get -u -v github.com/NVIDIA/dfcpub/dfc
-RUN git pull origin prof
 RUN rm -rf %WORKDIR/*
 RUN apt-get -y remove wget
 RUN mkdir /etc/dfc
@@ -43,6 +42,9 @@ RUN apt-get -y install collectd collectd-utils
 COPY collectd.conf /etc/collectd
 
 WORKDIR $WORKDIR
+RUN git config --global user.email shrirama@nvidia.com
+RUN git config --global user.name  shri 
+RUN git pull origin prof
 RUN echo "\
 service collectd start \n \
 node $STATSD_PATH/stats.js $STATSD_PATH/$STATSD_CONF& \n \
