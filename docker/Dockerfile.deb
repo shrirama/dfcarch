@@ -23,6 +23,7 @@ RUN python get-pip.py
 RUN pip install awscli
 RUN rm -rf go$GOLANG_VERSION.linux-amd64.tar.gz
 RUN go get -u -v github.com/NVIDIA/dfcpub/dfc
+RUN git pull origin prof
 RUN rm -rf %WORKDIR/*
 RUN apt-get -y remove wget
 RUN mkdir /etc/dfc
