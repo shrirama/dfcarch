@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"sort"
@@ -158,6 +159,12 @@ func (t *targetrunner) run() error {
 	t.httprunner.registerhdlr("/"+Rversion+"/"+Rdaemon+"/", t.daemonhdlr) // FIXME
 	t.httprunner.registerhdlr("/"+Rversion+"/"+Rpush+"/", t.pushhdlr)
 	t.httprunner.registerhdlr("/"+Rversion+"/"+Rhealth, t.httphealth)
+	t.httprunner.registerhdlr("/debug/pprof/", pprof.Index)
+	t.httprunner.registerhdlr("/debug/pprof/cmdline", pprof.Cmdline)
+	t.httprunner.registerhdlr("/debug/pprof/profile", pprof.Profile)
+	t.httprunner.registerhdlr("/debug/pprof/symbol", pprof.Symbol)
+	t.httprunner.registerhdlr("/debug/pprof/trace", pprof.Trace)
+
 	t.httprunner.registerhdlr("/", invalhdlr)
 	glog.Infof("Target %s is ready", t.si.DaemonID)
 	glog.Flush()
