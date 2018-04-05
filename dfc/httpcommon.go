@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	maxidleconns = 32768 // max num idle connections
+	maxidleconns     = 4096 // max num idle connections
+	hostmaxidleconns = 1024 // max num idle connections for each host
 )
 const (
 	initialBucketListSize = 512
@@ -112,11 +113,11 @@ func (h *httprunner) init(s statsif) {
 	}
 	// http client
 	h.httpclient = &http.Client{
-		Transport: &http.Transport{MaxIdleConnsPerHost: maxidleconns},
+		Transport: &http.Transport{MaxIdleConns: maxidleconns, MaxIdleConnsPerHost: hostmaxidleconns},
 		Timeout:   ctx.config.HTTP.Timeout,
 	}
 	h.httpclientLongTimeout = &http.Client{
-		Transport: &http.Transport{MaxIdleConnsPerHost: maxidleconns},
+		Transport: &http.Transport{MaxIdleConns: maxidleconns, MaxIdleConnsPerHost: hostmaxidleconns},
 		Timeout:   ctx.config.HTTP.LongTimeout,
 	}
 	// init daemonInfo here
