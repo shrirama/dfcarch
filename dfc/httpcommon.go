@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	maxidleconns     = 4096 // max num idle connections
+	maxidleconns     = 8192 // max num idle connections
 	hostmaxidleconns = 1024 // max num idle connections for each host
 )
 const (
