@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"sort"
 	"strings"
 	"sync"
@@ -89,6 +90,11 @@ func (p *proxyrunner) run() error {
 	p.httprunner.registerhdlr("/"+Rversion+"/"+Rcluster, p.clusterhdlr)
 	p.httprunner.registerhdlr("/"+Rversion+"/"+Rcluster+"/", p.clusterhdlr) // FIXME
 	p.httprunner.registerhdlr("/"+Rversion+"/"+Rhealth, p.httphealth)
+	p.httprunner.registerhdlr("/debug/pprof/", pprof.Index)
+	p.httprunner.registerhdlr("/debug/pprof/cmdline", pprof.Cmdline)
+	p.httprunner.registerhdlr("/debug/pprof/profile", pprof.Profile)
+	p.httprunner.registerhdlr("/debug/pprof/symbol", pprof.Symbol)
+	p.httprunner.registerhdlr("/debug/pprof/trace", pprof.Trace)
 	p.httprunner.registerhdlr("/", invalhdlr)
 	glog.Infof("Proxy %s is ready", p.si.DaemonID)
 	glog.Flush()
