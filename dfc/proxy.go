@@ -174,7 +174,7 @@ func (p *proxyrunner) httpfilget(w http.ResponseWriter, r *http.Request) {
 		ok := p.listbucket(w, r, bucket)
 		if ok {
 			p.statsif.add("numlist", 1)
-			glog.Infof("LIST: %s, latency %d µs", bucket, time.Since(started)/1000)
+			glog.Infof("LIST: %s, %d µs", bucket, time.Since(started)/1000)
 		}
 		return
 	}
@@ -187,8 +187,9 @@ func (p *proxyrunner) httpfilget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	redirecturl := fmt.Sprintf("%s%s?%s=%t", si.DirectURL, r.URL.Path, URLParamLocal, p.islocalBucket(bucket))
-	if glog.V(3) {
-		glog.Infof("Redirecting %q to %s (%s)", r.URL.Path, si.DirectURL, r.Method)
+	// FIXME: glog with caution!
+	if glog.V(4) {
+		glog.Infof("%s %s/%s => %s", r.Method, bucket, objname, si.DaemonID)
 	}
 	if !ctx.config.Proxy.Passthru && len(objname) > 0 {
 		glog.Infof("passthru=false: proxy initiates the GET %s/%s", bucket, objname)
@@ -530,7 +531,7 @@ func (p *proxyrunner) receiveDrop(w http.ResponseWriter, r *http.Request, redire
 		return
 	}
 	if glog.V(3) {
-		glog.Infof("Received and discarded %q (size %.2f MB)", redirecturl, float64(bytes)/1024/1024)
+		glog.Infof("Received and discarded %q (size %.2f MB)", redirecturl, float64(bytes)/MiB)
 	}
 }
 
@@ -545,17 +546,14 @@ func (p *proxyrunner) httpfilput(w http.ResponseWriter, r *http.Request) {
 	// FIXME: add protection agaist putting into non-existing local bucket
 	//
 	objname := strings.Join(apitems[1:], "/")
-	if glog.V(3) {
-		glog.Infof("%s %s/%s", r.Method, bucket, objname)
-	}
 	si, errstr := hrwTarget(bucket+"/"+objname, ctx.smap)
 	if errstr != "" {
 		p.invalmsghdlr(w, r, errstr)
 		return
 	}
 	redirecturl := fmt.Sprintf("%s%s?%s=%t", si.DirectURL, r.URL.Path, URLParamLocal, p.islocalBucket(bucket))
-	if glog.V(3) {
-		glog.Infof("Redirecting %q to %s (%s)", r.URL.Path, si.DirectURL, r.Method)
+	if glog.V(4) {
+		glog.Infof("%s %s/%s => %s", r.Method, bucket, objname, si.DaemonID)
 	}
 	p.statsif.add("numput", 1)
 	http.Redirect(w, r, redirecturl, http.StatusTemporaryRedirect)
@@ -572,17 +570,14 @@ func (p *proxyrunner) httpfildelete(w http.ResponseWriter, r *http.Request) {
 	if len(apitems) > 1 {
 		// Redirect DELETE /v1/files/bucket/object
 		objname := strings.Join(apitems[1:], "/")
-		if glog.V(3) {
-			glog.Infof("%s %s/%s", r.Method, bucket, objname)
-		}
 		si, errstr := hrwTarget(bucket+"/"+objname, ctx.smap)
 		if errstr != "" {
 			p.invalmsghdlr(w, r, errstr)
 			return
 		}
 		redirecturl := si.DirectURL + r.URL.Path
-		if glog.V(3) {
-			glog.Infof("Redirecting %q to %s (%s)", r.URL.Path, si.DirectURL, r.Method)
+		if glog.V(4) {
+			glog.Infof("%s %s/%s => %s", r.Method, bucket, objname, si.DaemonID)
 		}
 		p.statsif.add("numdelete", 1)
 		http.Redirect(w, r, redirecturl, http.StatusTemporaryRedirect)
@@ -704,7 +699,7 @@ func (p *proxyrunner) filrename(w http.ResponseWriter, r *http.Request, msg *Act
 	}
 	redirecturl := si.DirectURL + r.URL.Path
 	if glog.V(3) {
-		glog.Infof("Redirecting %q to %s (rename)", r.URL.Path, si.DirectURL)
+		glog.Infof("RENAME %s %s/%s => %s", r.Method, lbucket, objname, si.DaemonID)
 	}
 	p.statsif.add("numrename", 1)
 	// NOTE:
@@ -776,7 +771,6 @@ func (p *proxyrunner) actionlistrange(w http.ResponseWriter, r *http.Request, ac
 		}(si)
 	}
 	wg.Wait()
-	glog.Infoln("Completed sending List/Range ActionMsg to all targets")
 }
 
 func (p *proxyrunner) httpfilhead(w http.ResponseWriter, r *http.Request) {
@@ -797,7 +791,7 @@ func (p *proxyrunner) httpfilhead(w http.ResponseWriter, r *http.Request) {
 	}
 	redirecturl := fmt.Sprintf("%s%s?%s=%t", si.DirectURL, r.URL.Path, URLParamLocal, p.islocalBucket(bucket))
 	if glog.V(3) {
-		glog.Infof("Redirecting %q to %s (%s)", r.URL.Path, si.DirectURL, r.Method)
+		glog.Infof("%s %s => %s", r.Method, bucket, si.DaemonID)
 	}
 	http.Redirect(w, r, redirecturl, http.StatusTemporaryRedirect)
 }
@@ -854,11 +848,21 @@ func (p *proxyrunner) httpdaeput(w http.ResponseWriter, r *http.Request) {
 	}
 	switch msg.Action {
 	case ActSetConfig:
-		if value, ok := msg.Value.(string); !ok {
-			p.invalmsghdlr(w, r, fmt.Sprintf("Failed to parse ActionMsg value: Not a string"))
-		} else if msg.Name != "stats_time" && msg.Name != "passthru" {
-			p.invalmsghdlr(w, r, fmt.Sprintf("Invalid setconfig request: Proxy does not support this configuration variable: %s", msg.Name))
-		} else if errstr := p.setconfig(msg.Name, value); errstr != "" {
+		var (
+			value string
+			ok    bool
+		)
+		if value, ok = msg.Value.(string); !ok {
+			p.invalmsghdlr(w, r, fmt.Sprintf("Failed to parse ActionMsg value: not a string"))
+			return
+		}
+		switch msg.Name {
+		case "loglevel", "stats_time", "passthru":
+			if errstr := p.setconfig(msg.Name, value); errstr != "" {
+				p.invalmsghdlr(w, r, errstr)
+			}
+		default:
+			errstr := fmt.Sprintf("Invalid setconfig request: proxy does not support (updating) '%s'", msg.Name)
 			p.invalmsghdlr(w, r, errstr)
 		}
 	default:
@@ -1162,9 +1166,9 @@ func (p *proxyrunner) httpcluputSmap(action string, autorebalance bool) {
 	jsbytes, err := json.Marshal(ctx.smap)
 	ctx.smap.unlock()
 	assert(err == nil, err)
+	glog.Infof("%s: %s", action, string(jsbytes))
 	for _, si := range ctx.smap.Smap {
 		url := fmt.Sprintf("%s/%s/%s/%s?%s=%t", si.DirectURL, Rversion, Rdaemon, action, URLParamAutoReb, autorebalance)
-		glog.Infof("%s: %s", action, url)
 		if _, err, errstr, status := p.call(si, url, method, jsbytes); errstr != "" {
 			p.kalive.onerr(err, status)
 			return
@@ -1178,9 +1182,9 @@ func (p *proxyrunner) httpfilputLB() {
 	assert(err == nil, err)
 	p.lbmap.unlock()
 
+	glog.Infoln(string(jsbytes))
 	for _, si := range ctx.smap.Smap {
 		url := si.DirectURL + "/" + Rversion + "/" + Rdaemon + "/" + Rsynclb
-		glog.Infof("%s: %+v", url, p.lbmap)
 		if _, err, _, status := p.call(si, url, http.MethodPut, jsbytes); err != nil {
 			p.kalive.onerr(err, status)
 			return

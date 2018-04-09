@@ -188,7 +188,7 @@ func (h *httprunner) call(si *daemonInfo, url, method string, injson []byte,
 	if len(injson) == 0 {
 		request, err = http.NewRequest(method, url, nil)
 		if glog.V(3) {
-			glog.Infof("%s URL %q", method, url)
+			glog.Infof("%s %s", method, url)
 		}
 	} else {
 		request, err = http.NewRequest(method, url, bytes.NewBuffer(injson))
@@ -351,6 +351,10 @@ func (h *httprunner) setconfig(name, value string) (errstr string) {
 		return uint32(v), err
 	}
 	switch name {
+	case "loglevel":
+		if err := setloglevel(value); err != nil {
+			errstr = fmt.Sprintf("Failed to set log level = %s, err: %v", value, err)
+		}
 	case "stats_time":
 		if v, err := time.ParseDuration(value); err != nil {
 			errstr = fmt.Sprintf("Failed to parse stats_time, err: %v", err)

@@ -1,8 +1,12 @@
 	cat > $CONFFILE <<EOL
 {
-	"logdir":			"$LOGDIR",
+	"log": {
+		"logdir":		"$LOGDIR",
+		"loglevel": 		"${LOGLEVEL}",
+		"logmaxsize": 		2097152,
+		"logmaxtotal":		33554432
+	},
 	"confdir":                	"$CONFDIR",
-	"loglevel": 			"${LOGLEVEL}",
 	"cloudprovider":		"${CLDPROVIDER}",
 	"cloud_buckets":		"cloud",
 	"local_buckets":		"local",
@@ -12,7 +16,6 @@
 		"long_timeout":		"30m"
 	},
 	"keep_alive_time":		"20s",
-	"h2c": 				false,
 	"listen": {
 		"proto": 		"tcp",
 		"port":			"${PORT}"
@@ -60,10 +63,12 @@
 		"put":			"disk",
 		"max_mem_mb":		16
 	},
-	"diskkeeper": {
-		"fs_check_time":         "30s",
-		"offline_fs_check_time": "2m"
-	}
+	"fskeeper": {
+		"fs_check_time":         "0",
+		"offline_fs_check_time": "0",
+		"fskeeper_enabled":      false
+	},
+	"h2c": 				false
 }
 EOL
 
