@@ -112,11 +112,11 @@ func (h *httprunner) init(s statsif) {
 	}
 	// http client
 	h.httpclient = &http.Client{
-		Transport: &http.Transport{MaxIdleConnsPerHost: maxidleconns},
+		Transport: &http.Transport{MaxIdleConns: ctx.config.HTTP.TgtMaxIdleConns, MaxIdleConnsPerHost: ctx.config.HTTP.ClientMaxIdleConns},
 		Timeout:   ctx.config.HTTP.Timeout,
 	}
 	h.httpclientLongTimeout = &http.Client{
-		Transport: &http.Transport{MaxIdleConnsPerHost: maxidleconns},
+		Transport: &http.Transport{MaxIdleConns: ctx.config.HTTP.TgtMaxIdleConns, MaxIdleConnsPerHost: ctx.config.HTTP.ClientMaxIdleConns},
 		Timeout:   ctx.config.HTTP.LongTimeout,
 	}
 	// init daemonInfo here
@@ -186,26 +186,20 @@ func (h *httprunner) call(si *daemonInfo, url, method string, injson []byte,
 	}
 	if len(injson) == 0 {
 		request, err = http.NewRequest(method, url, nil)
-		if glog.V(4) { // super-verbose
-			glog.Infof("%s %s", method, url)
+		if glog.V(4) {
+			glog.Infof("%s URL %q", method, url)
 		}
 	} else {
 		request, err = http.NewRequest(method, url, bytes.NewBuffer(injson))
 		if err == nil {
 			request.Header.Set("Content-Type", "application/json")
 		}
-		if glog.V(4) { // super-verbose
-			l := len(injson)
-			if l > 16 {
-				l = 16
-			}
-			glog.Infof("%s %s %s...}", method, url, string(injson[:l]))
-		}
 	}
 	if err != nil {
 		errstr = fmt.Sprintf("Unexpected failure to create http request %s %s, err: %v", method, url, err)
 		return
 	}
+
 	if len(timeout) > 0 {
 		if timeout[0] != 0 {
 			contextwith, cancel := context.WithTimeout(context.Background(), timeout[0])
@@ -358,7 +352,7 @@ func (h *httprunner) setconfig(name, value string) (errstr string) {
 	switch name {
 	case "loglevel":
 		if err := setloglevel(value); err != nil {
-			errstr = fmt.Sprintf("Failed to set log level = %s, err: %v", value, err)
+			errstr = fmt.Sprintf("Failed to set log level = %s, err: %v", err)
 		}
 	case "stats_time":
 		if v, err := time.ParseDuration(value); err != nil {

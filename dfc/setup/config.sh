@@ -12,6 +12,8 @@
 	"local_buckets":		"local",
 	"stats_time":			"10s",
 	"http": {
+		"clientmaxidleconn":	1024,	
+		"tgtmaxidleconn":	16384,
 		"timeout":		"30s",
 		"long_timeout":		"30m"
 	},

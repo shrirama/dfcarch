@@ -133,10 +133,12 @@ type ackpolicy struct {
 
 // httpconfig configures parameters for the HTTP clients used by the Proxy
 type httpconfig struct {
-	TimeoutStr     string        `json:"timeout"`
-	Timeout        time.Duration `json:"-"` // omitempty
-	LongTimeoutStr string        `json:"long_timeout"`
-	LongTimeout    time.Duration `json:"-"` // omitempty
+	ClientMaxIdleConns int           `json:"clientmaxidleconn"`
+	TgtMaxIdleConns    int           `json:"tgtmaxidleconn"`
+	TimeoutStr         string        `json:"timeout"`
+	Timeout            time.Duration `json:"-"` // omitempty
+	LongTimeoutStr     string        `json:"long_timeout"`
+	LongTimeout        time.Duration `json:"-"` // omitempty
 }
 
 type versionconfig struct {
@@ -270,6 +272,9 @@ func validateconf() (err error) {
 				}
 			}
 		}
+	}
+	if ctx.config.HTTP.ClientMaxIdleConns <= 0 || ctx.config.HTTP.TgtMaxIdleConns <= 0 || ctx.config.HTTP.ClientMaxIdleConns > ctx.config.HTTP.TgtMaxIdleConns {
+		return fmt.Errorf("Invalid ClientMaxIdleConns: %d or TgtMaxIdleConns: %d, expecting TgtMaxIdleConns > ClientMaxIdleConns", ctx.config.HTTP.ClientMaxIdleConns, ctx.config.HTTP.TgtMaxIdleConns)
 	}
 	if ctx.config.CksumConfig.Checksum != ChecksumXXHash && ctx.config.CksumConfig.Checksum != ChecksumNone {
 		return fmt.Errorf("Invalid checksum: %s - expecting %s or %s", ctx.config.CksumConfig.Checksum, ChecksumXXHash, ChecksumNone)
