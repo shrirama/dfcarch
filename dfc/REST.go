@@ -58,13 +58,14 @@ const (
 // TODO: sort and some props are TBD
 // GetMsg represents properties and options for get requests
 type GetMsg struct {
-	GetWhat       string `json:"what"`        // "config" | "stats" ...
-	GetSort       string `json:"sort"`        // "ascending, atime" | "descending, name"
-	GetProps      string `json:"props"`       // e.g. "checksum, size" | "atime, size" | "ctime, iscached" | "bucket, size"
-	GetTimeFormat string `json:"time_format"` // "RFC822" default - see the enum below
-	GetPrefix     string `json:"prefix"`      // object name filter: return only objects which name starts with prefix
-	GetPageMarker string `json:"pagemarker"`  // AWS/GCP: marker
-	GetPageSize   int    `json:"pagesize"`    // maximum number of entries returned by list bucket call
+	GetWhat         string `json:"what"`         // "config" | "stats" | "bucketlist" ...
+	GetSort         string `json:"sort"`         // "ascending, atime" | "descending, name"
+	GetProps        string `json:"props"`        // e.g. "checksum, size" | "atime, size" | "ctime, iscached" | "bucket, size"
+	GetTimeFormat   string `json:"time_format"`  // "RFC822" default - see the enum below
+	GetPrefix       string `json:"prefix"`       // object name filter: return only objects which name starts with prefix
+	GetPageMarker   string `json:"pagemarker"`   // AWS/GCP: marker
+	GetProviderType string `json:"providertype"` // local/cloud/all
+	GetPageSize     int    `json:"pagesize"`     // maximum number of entries returned by list bucket call
 }
 
 // RangeListMsgBase contains fields common to Range and List operations
@@ -95,10 +96,11 @@ type RangeMsg struct {
 
 // GetMsg.GetWhat enum
 const (
-	GetWhatFile   = "file" // { "what": "file" } is implied by default and can be omitted
-	GetWhatConfig = "config"
-	GetWhatSmap   = "smap"
-	GetWhatStats  = "stats"
+	GetWhatFile       = "file" // { "what": "file" } is implied by default and can be omitted
+	GetWhatConfig     = "config"
+	GetWhatSmap       = "smap"
+	GetWhatStats      = "stats"
+	GetWhatAllBuckets = "allbuckets"
 )
 
 // GetMsg.GetSort enum
@@ -152,6 +154,9 @@ type BucketEntry struct {
 type BucketList struct {
 	Entries    []*BucketEntry `json:"entries"`
 	PageMarker string         `json:"pagemarker"`
+}
+type Blist struct {
+	Buckets []string `json:"buckets"`
 }
 
 // RESTful URL path: /v1/....

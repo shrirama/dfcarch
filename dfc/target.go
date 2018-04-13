@@ -278,6 +278,23 @@ func (t *targetrunner) httpfilget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//
+	// Get All Buckets and return.
+	//
+	if strings.Contains(bucket, "*") {
+		var msg GetMsg
+		if t.readJSON(w, r, &msg) != nil {
+			return
+		}
+		if msg.GetWhat == GetWhatAllBuckets {
+			jsbytes := t.getallBuckets(w, r, &msg)
+			t.writeJSON(w, r, jsbytes, "getallbucket")
+		} else {
+			s := fmt.Sprintf("Unexpected GetMsg <- JSON [%v]", msg)
+			t.invalmsghdlr(w, r, s)
+		}
+		return
+	}
+	//
 	// list the bucket and return
 	//
 	if len(objname) == 0 {
@@ -1568,7 +1585,34 @@ func (t *targetrunner) httpfilhead(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add(k, v)
 	}
 }
-
+func (t *targetrunner) getallBuckets(w http.ResponseWriter, r *http.Request, msg *GetMsg) (jsbytes []byte) {
+	var (
+		buckets []string
+		errstr  string
+		errcode int
+		err     error
+	)
+	if msg.GetProviderType == "all" || msg.GetProviderType == "cloud" {
+		buckets, errstr, errcode = getcloudif().getallbuckets()
+		if errstr != "" {
+			if errcode == 0 {
+				t.invalmsghdlr(w, r, errstr)
+			} else {
+				t.invalmsghdlr(w, r, errstr, errcode)
+			}
+			return
+		}
+	}
+	if msg.GetProviderType == "all" || msg.GetProviderType == "local" {
+		for bkt := range t.lbmap.LBmap {
+			buckets = append(buckets, bkt)
+		}
+	}
+	b := &Blist{Buckets: buckets}
+	jsbytes, err = json.Marshal(b)
+	assert(err == nil, err)
+	return
+}
 func (t *targetrunner) checkCacheQueryParameter(r *http.Request) (useCache bool, errstr string, errcode int) {
 	useCacheStr := r.URL.Query().Get(URLParamCached)
 	if useCacheStr != "" && useCacheStr != "true" && useCacheStr != "false" {

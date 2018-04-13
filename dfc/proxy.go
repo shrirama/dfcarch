@@ -164,7 +164,7 @@ func (p *proxyrunner) httpfilget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// listbucket
-	if len(objname) == 0 {
+	if len(objname) == 0 && bucket != "*" {
 		started := time.Now()
 		ok := p.listbucket(w, r, bucket)
 		if ok {
@@ -191,7 +191,7 @@ func (p *proxyrunner) httpfilget(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("passthru=false: proxy initiates the GET %s/%s", bucket, objname)
 		p.receiveDrop(w, r, redirecturl) // ignore error, proceed to http redirect
 	}
-	http.Redirect(w, r, redirecturl, http.StatusMovedPermanently)
+	http.Redirect(w, r, redirecturl, http.StatusTemporaryRedirect)
 	p.statsif.addMany("numget", int64(1), "getlatency", int64(time.Since(started)/1000))
 }
 

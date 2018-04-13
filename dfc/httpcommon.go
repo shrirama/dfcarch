@@ -51,6 +51,7 @@ type cloudif interface {
 	getobj(fqn, bucket, objname string) (props *objectProps, errstr string, errcode int)
 	putobj(file *os.File, bucket, objname string, ohobj cksumvalue) (version string, errstr string, errcode int)
 	deleteobj(bucket, objname string) (errstr string, errcode int)
+	getallbuckets() (buckets []string, errstr string, errcode int)
 }
 
 //===========

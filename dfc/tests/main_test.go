@@ -608,6 +608,12 @@ func Test_headbucket(t *testing.T) {
 	}
 	destroyLocalBucket(httpclient, t, TestLocalBucketName)
 }
+func Test_getallbuckets(t *testing.T) {
+	err := client.GetAllBuckets(proxyurl)
+	if err != nil {
+		t.Errorf("Failed to execute GetAllBuckets: %v", err)
+	}
+}
 
 func Benchmark_get(b *testing.B) {
 	var wg = &sync.WaitGroup{}

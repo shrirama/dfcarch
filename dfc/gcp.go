@@ -71,6 +71,7 @@ func createclient() (*storage.Client, context.Context, string) {
 // methods
 //
 //======
+
 func (gcpimpl *gcpimpl) listbucket(bucket string, msg *GetMsg) (jsbytes []byte, errstr string, errcode int) {
 	glog.Infof("gcp: listbucket %s", bucket)
 	client, gctx, errstr := createclient()
@@ -271,6 +272,30 @@ func (gcpimpl *gcpimpl) deleteobj(bucket, objname string) (errstr string, errcod
 	}
 	if glog.V(4) {
 		glog.Infof("gcp: DELETE %s/%s", bucket, objname)
+	}
+	return
+}
+
+func (gcpimpl *gcpimpl) getallbuckets() (buckets []string, errstr string, errcode int) {
+	client, gctx, errstr := createclient()
+	if errstr != "" {
+		return
+	}
+	it := client.Buckets(gctx, getProjID())
+	for {
+		battrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			errcode = gcpErrorToHTTP(err)
+			errstr = fmt.Sprintf("gcp: Failed to GETALLBUCKETS, err: %v", err)
+			return
+		}
+		buckets = append(buckets, battrs.Name)
+		if glog.V(4) {
+			glog.Infof("gcp: LIST BUCKET %s ", battrs.Name)
+		}
 	}
 	return
 }

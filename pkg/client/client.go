@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -349,14 +350,6 @@ func ListBucket(proxyurl, bucket string, msg *dfc.GetMsg, objectCountLimit int) 
 	toRead := objectCountLimit
 	for {
 		var r *http.Response
-
-		if toRead != 0 {
-			if (msg.GetPageSize == 0 && toRead < dfc.DefaultPageSize) ||
-				(msg.GetPageSize != 0 && msg.GetPageSize > toRead) {
-				msg.GetPageSize = toRead
-			}
-		}
-
 		injson, err := json.Marshal(msg)
 		if err != nil {
 			return nil, err
@@ -397,7 +390,6 @@ func ListBucket(proxyurl, bucket string, msg *dfc.GetMsg, objectCountLimit int) 
 		if page.PageMarker == "" {
 			break
 		}
-
 		if objectCountLimit != 0 {
 			if len(reslist.Entries) >= objectCountLimit {
 				break
@@ -550,6 +542,52 @@ func HeadBucket(proxyurl, bucket string) (bucketprops *BucketProps, err error) {
 	}
 	bucketprops.CloudProvider = r.Header.Get(dfc.CloudProvider)
 	bucketprops.Versioning = r.Header.Get(dfc.Versioning)
+	return
+}
+func GetAllBuckets(proxyurl string) (err error) {
+	var (
+		url    = proxyurl + "/v1/files/" + "*"
+		req    *http.Request
+		r      *http.Response
+		injson []byte
+	)
+	GetAllBucketsMsg := dfc.GetMsg{GetWhat: dfc.GetWhatAllBuckets, GetProviderType: "all"}
+	injson, err = json.Marshal(&GetAllBucketsMsg)
+	if err != nil {
+		err = fmt.Errorf("Failed to marshal input for allbuckets: %v", err)
+		return
+	}
+	req, err = http.NewRequest("GET", url, bytes.NewBuffer(injson))
+	if err != nil {
+		err = fmt.Errorf("Failed to create GET request for allbuckets: %v", err)
+		return
+	}
+	r, err = client.Do(req)
+	if err != nil {
+		err = fmt.Errorf("Failed to GET allbuckets: %v", err)
+		return
+	}
+	defer func() {
+		r.Body.Close()
+	}()
+	if r != nil && r.StatusCode >= http.StatusBadRequest {
+		err = fmt.Errorf("GetAllbucket failed, HTTP status %d", r.StatusCode)
+		return
+	}
+	var b []byte
+	b, err = ioutil.ReadAll(r.Body)
+	if err != nil {
+		err = fmt.Errorf("Failed to read response body: %v", err)
+		return
+	}
+	//reslist := &dfc.BucketList{Entries: make([]*dfc.BucketEntry, 0, 1000)}
+	bktlist := &dfc.Blist{Buckets: make([]string, 0, 1000)}
+	err = json.Unmarshal(b, bktlist)
+	if err != nil {
+		err = fmt.Errorf("Failed to unmarshal bucket list: %v", err)
+		return
+	}
+	fmt.Fprintf(os.Stdout, " bucket list in json %v", bktlist.Buckets)
 	return
 }
 

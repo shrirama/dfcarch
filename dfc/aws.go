@@ -310,3 +310,20 @@ func (awsimpl *awsimpl) deleteobj(bucket, objname string) (errstr string, errcod
 	}
 	return
 }
+func (awsimpl *awsimpl) getallbuckets() (buckets []string, errstr string, errcode int) {
+	sess := createsession()
+	svc := s3.New(sess)
+	result, err := svc.ListBuckets(&s3.ListBucketsInput{})
+	if err != nil {
+		errcode = awsErrorToHTTP(err)
+		errstr = fmt.Sprintf("aws: Failed to LIST buckets, err: %v", err)
+		return
+	}
+	for _, bkt := range result.Buckets {
+		if glog.V(4) {
+			glog.Infof("aws: LIST BUCKET  %s : %s\n", aws.StringValue(bkt.Name), bkt.CreationDate)
+		}
+		buckets = append(buckets, aws.StringValue(bkt.Name))
+	}
+	return
+}
